@@ -30,6 +30,7 @@
         }
         
         btn.style.cssText = `
+            background: #249cb7;
             position: fixed; top: 20px; right: 20px; z-index: 99999;
             padding: 15px 25px; color: white;
             border: none; border-radius: 8px; font-size: 17px; cursor: pointer;
