@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         crxs.me 小说一键下载器 - v2.0 (链接计数翻页版)
+// @name         crxs.me 小说一键下载器 - v2.1 (首行缩进排版版)
 // @namespace    https://crxs.me
-// @version      2.0
-// @description  按p标签换行，过滤导航。翻页完全依据导航栏链接数量判定：2个链接跳最后一个，1个链接则完结导出。
+// @version      2.1
+// @description  按p标签换行并注入全角双空格标准缩进，过滤导航。翻页完全依据导航栏链接数量判定：2个链接跳最后一个，1个链接则完结导出。
 // @author       Anjou & AI
-// @match        https://crxs.me/fiction/id-*
+// @match        https://crxs.me/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
@@ -96,7 +96,7 @@
         if (targetEl) {
             const cloneEl = targetEl.cloneNode(true);
 
-            // 依然在存入前剔除正文内的导航文字
+            // 剔除正文内的导航文字
             const navsInContent = cloneEl.querySelectorAll('.fiction-chapter-navigator');
             navsInContent.forEach(nav => nav.remove());
 
@@ -105,11 +105,19 @@
                 let pTexts = [];
                 pTags.forEach(p => {
                     let text = p.innerText.trim();
-                    if (text) pTexts.push(text);
+                    // 核心修改点：若段落不为空，强行挂载两个物理全角空格，实现首行缩进
+                    if (text) pTexts.push('　　' + text);
                 });
                 content = pTexts.join('\n\n');
             } else {
-                content = cloneEl.innerText.trim().replace(/\n+/g, '\n\n');
+                // 兜底处理：若无 p 标签则按换行切分后重组并注入全角缩进
+                let rawLines = cloneEl.innerText.split('\n');
+                let processedLines = [];
+                rawLines.forEach(line => {
+                    let text = line.trim();
+                    if (text) processedLines.push('　　' + text);
+                });
+                content = processedLines.join('\n\n');
             }
         }
 
@@ -128,20 +136,20 @@
         console.log(`✅ 本页抓取成功：${chapterTitle}`);
     }
 
-    // 【核心修改：全新翻页判定逻辑】
+    // 【全新翻页判定逻辑】
     function findAndCrawlNext() {
         const btn = document.getElementById('crxs-downloader');
 
-        // 1. 只寻找基础类名，不管后面有没有 has-next-rate-hint
+        // 1. 只寻找基础类名
         const navBar = document.querySelector('.fiction-chapter-navigator');
 
         if (navBar) {
             // 2. 获取该导航栏下所有的 <a> 标签
             const links = navBar.querySelectorAll('a');
 
-            // 3. 判定：如果有 2 个或更多的链接（通常是“上一章”和“下一章”）
+            // 3. 判定：如果有 2 个或更多的链接
             if (links.length >= 2) {
-                // 点击最后一个链接（使用 links.length - 1 动态获取最后一个）
+                // 点击最后一个链接
                 const nextUrl = links[links.length - 1].href;
 
                 if (nextUrl && nextUrl !== window.location.href && !nextUrl.includes('javascript')) {
@@ -150,8 +158,6 @@
                     return; // 成功跳转，拦截后面的导出逻辑
                 }
             }
-            // 4. 判定：如果只有 1 个链接（第一章可能只有“下一章”，但我们要防的是最后一章只有“上一章”）
-            // 稳妥起见，只要不满足“大于等于2个链接”的条件，或者最后一个链接无效，就直接判定为完结
         }
 
         // 判定为最后一章，执行导出
